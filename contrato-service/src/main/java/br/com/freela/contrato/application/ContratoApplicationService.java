@@ -16,8 +16,12 @@ import java.util.function.Consumer;
 public class ContratoApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ContratoApplicationService.class);
     private final ContratoRepository repository;
+    private final EventoOutbox outbox;
 
-    public ContratoApplicationService(ContratoRepository repository) { this.repository = repository; }
+    public ContratoApplicationService(ContratoRepository repository, EventoOutbox outbox) {
+        this.repository = repository;
+        this.outbox = outbox;
+    }
 
     @Transactional
     public Contrato criar(CriarContratoCommand cmd) {
@@ -89,8 +93,7 @@ public class ContratoApplicationService {
 
     private void registrarEventos(Contrato contrato) {
         for (DomainEvent event : contrato.pullDomainEvents()) {
-            log.info("contrato.evento.pendente contratoId={} eventId={} eventType={} occurredAt={}",
-                    event.contratoId(), event.eventId(), event.eventType(), event.occurredAt());
+            outbox.registrar(event);
         }
     }
 }

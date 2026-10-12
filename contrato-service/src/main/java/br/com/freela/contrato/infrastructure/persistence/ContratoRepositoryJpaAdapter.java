@@ -17,7 +17,16 @@ public class ContratoRepositoryJpaAdapter implements ContratoRepository {
 
     @Override public Contrato salvar(Contrato c) {
         log.info("contrato.persistence.save.inicio contratoId={} status={}", c.id(), c.status());
-        var entity = new ContratoJpaEntity(c.id(), c.clienteId(), c.freelancerId(), c.titulo(), c.valor(), c.status(), c.criadoEm(), c.versao());
+        var entity = new ContratoJpaEntity(
+                c.id(),
+                c.clienteId(),
+                c.freelancerId(),
+                c.titulo(),
+                c.valor(),
+                c.status(),
+                c.criadoEm(),
+                c.versao()
+        );
         var saved = jpa.save(entity);
         log.info("contrato.persistence.save.sucesso contratoId={} status={}", saved.getId(), saved.getStatus());
         return toDomain(saved);
@@ -31,6 +40,15 @@ public class ContratoRepositoryJpaAdapter implements ContratoRepository {
         return jpa.findAll().stream().map(this::toDomain).toList();
     }
     private Contrato toDomain(ContratoJpaEntity e) {
-        return Contrato.restaurar(e.getId(), e.getClienteId(), e.getFreelancerId(), e.getTitulo(), e.getValor(), e.getStatus(), e.getCriadoEm(), e.getVersao());
+        return Contrato.restaurar(
+                e.getId(),
+                e.getClienteId(),
+                e.getFreelancerId(),
+                e.getTitulo(),
+                e.getValor(),
+                e.getStatus(),
+                e.getCriadoEm(),
+                e.getVersao()
+        );
     }
 }
