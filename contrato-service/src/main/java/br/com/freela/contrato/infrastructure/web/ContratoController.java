@@ -19,7 +19,7 @@ public class ContratoController {
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public ContratoResponse criar(@Valid @RequestBody CriarContratoRequest request) {
-        log.info("http.contrato.criar clienteId={} freelancerId={} titulo={}", request.clienteId(), request.freelancerId(), request.titulo());
+        log.info("http.contrato.criar clienteId={} freelancerId={}", request.clienteId(), request.freelancerId());
         var c = service.criar(new CriarContratoCommand(request.clienteId(), request.freelancerId(), request.titulo(), request.valor()));
         log.info("http.contrato.criar.response contratoId={} status={}", c.id(), c.status());
         return ContratoResponse.from(c);
