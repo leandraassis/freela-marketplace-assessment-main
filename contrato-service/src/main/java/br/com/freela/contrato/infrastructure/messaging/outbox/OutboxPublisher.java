@@ -1,6 +1,9 @@
 package br.com.freela.contrato.infrastructure.messaging.outbox;
 
 import br.com.freela.contrato.infrastructure.correlation.CorrelationId;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.propagation.Propagator;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.slf4j.Logger;
@@ -15,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -28,6 +32,8 @@ public class OutboxPublisher {
     private final int tamanhoLote;
     private final long timeoutEnvioMs;
     private final long chaveLock;
+    private final Tracer tracer;
+    private final Propagator propagator;
 
     public OutboxPublisher(
             SpringDataOutboxEventoRepository repository,
@@ -35,7 +41,9 @@ public class OutboxPublisher {
             @Value("${app.kafka.topics.contratos}") String topico,
             @Value("${app.outbox.lote}") int tamanhoLote,
             @Value("${app.outbox.timeout-envio-ms}") long timeoutEnvioMs,
-            @Value("${app.outbox.chave-lock}") long chaveLock
+            @Value("${app.outbox.chave-lock}") long chaveLock,
+            Tracer tracer,
+            Propagator propagator
     ) {
         this.repository = repository;
         this.kafkaTemplate = kafkaTemplate;
@@ -43,6 +51,8 @@ public class OutboxPublisher {
         this.tamanhoLote = tamanhoLote;
         this.timeoutEnvioMs = timeoutEnvioMs;
         this.chaveLock = chaveLock;
+        this.tracer = tracer;
+        this.propagator = propagator;
     }
 
     @Scheduled(fixedDelayString = "${app.outbox.intervalo-ms}")
@@ -69,8 +79,9 @@ public class OutboxPublisher {
     }
 
     private boolean publicar(OutboxEventoJpaEntity evento) {
+        Span span = iniciarSpan(evento);
         MDC.put(CorrelationId.MDC_KEY, evento.getCorrelationId());
-        try {
+        try (Tracer.SpanInScope escopo = tracer.withSpan(span)) {
             SendResult<String, String> resultado = kafkaTemplate.send(criarRecord(evento))
                     .get(timeoutEnvioMs, TimeUnit.MILLISECONDS);
             evento.marcarPublicado(Instant.now());
@@ -82,14 +93,28 @@ public class OutboxPublisher {
             return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            span.error(e);
             registrarFalha(evento, e);
             return false;
         } catch (Exception e) {
+            span.error(e);
             registrarFalha(evento, e);
             return false;
         } finally {
+            span.end();
             MDC.remove(CorrelationId.MDC_KEY);
         }
+    }
+
+    private Span iniciarSpan(OutboxEventoJpaEntity evento) {
+        Map<String, String> carrier = evento.getTraceContext() == null
+                ? Map.of()
+                : Map.of(OutboxEventoAdapter.TRACEPARENT, evento.getTraceContext());
+        return propagator.extract(carrier, (mapa, chave) -> mapa.get(chave))
+                .name("outbox.publish")
+                .tag("eventType", evento.getEventType())
+                .tag("eventId", evento.getEventId().toString())
+                .start();
     }
 
     private ProducerRecord<String, String> criarRecord(OutboxEventoJpaEntity evento) {

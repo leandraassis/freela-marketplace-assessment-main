@@ -58,6 +58,13 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
     networks: [freela-net]
 
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: freela-zipkin
+    ports:
+      - "9411:9411"
+    networks: [freela-net]
+
 volumes:
   postgres_data:
 

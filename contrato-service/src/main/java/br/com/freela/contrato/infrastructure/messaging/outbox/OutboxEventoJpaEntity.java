@@ -64,6 +64,7 @@ public class OutboxEventoJpaEntity {
             String eventType,
             UUID contratoId,
             String correlationId,
+            String traceContext,
             String payload,
             Instant occurredAt
     ) {
@@ -72,6 +73,7 @@ public class OutboxEventoJpaEntity {
         entity.eventType = eventType;
         entity.contratoId = contratoId;
         entity.correlationId = correlationId;
+        entity.traceContext = traceContext;
         entity.payload = payload;
         entity.occurredAt = occurredAt;
         entity.status = OutboxStatus.PENDENTE;
