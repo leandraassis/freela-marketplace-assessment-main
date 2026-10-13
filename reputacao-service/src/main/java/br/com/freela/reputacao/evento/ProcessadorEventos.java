@@ -41,7 +41,7 @@ public class ProcessadorEventos {
         this.transactionTemplate = transactionTemplate;
     }
 
-    public void processar(ConsumerRecord<String, String> record, Consumer<EventoContrato> efeito) {
+    public boolean processar(ConsumerRecord<String, String> record, Consumer<EventoContrato> efeito) {
         colocarMdcDosHeaders(record);
         try {
             log.info("evento.recebido topic={} partition={} offset={} eventType={}",
@@ -51,10 +51,11 @@ public class ProcessadorEventos {
             colocarMdcDoEvento(evento);
 
             log.info("evento.processamento.inicio eventType={}", evento.eventType());
-            Boolean aplicado = transactionTemplate.execute(status -> aplicar(evento, efeito));
-            if (Boolean.TRUE.equals(aplicado)) {
+            boolean aplicado = Boolean.TRUE.equals(transactionTemplate.execute(status -> aplicar(evento, efeito)));
+            if (aplicado) {
                 log.info("evento.processamento.sucesso eventType={}", evento.eventType());
             }
+            return aplicado;
         } catch (RuntimeException e) {
             log.error("evento.processamento.falha topic={} partition={} offset={} causa={}",
                     record.topic(), record.partition(), record.offset(),
