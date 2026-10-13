@@ -13,6 +13,10 @@ spring:
     open-in-view: false
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
     consumer:
       group-id: ${spring.application.name}
       auto-offset-reset: earliest
@@ -27,6 +31,10 @@ app:
     topics:
       contratos: contratos.eventos.v1
       contratos-dlt: contratos.eventos.v1.DLT
+    retry:
+      intervalo-inicial-ms: 1000
+      multiplicador: 2.0
+      max-retentativas: 3
 management:
   endpoints:
     web:

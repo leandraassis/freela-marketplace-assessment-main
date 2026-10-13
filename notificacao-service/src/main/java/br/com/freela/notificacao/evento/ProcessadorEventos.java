@@ -5,8 +5,10 @@ import org.apache.kafka.common.header.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Consumer;
@@ -41,7 +43,16 @@ public class ProcessadorEventos {
         this.transactionTemplate = transactionTemplate;
     }
 
-    public boolean processar(ConsumerRecord<String, String> record, Consumer<EventoContrato> efeito) {
+    public void processar(ConsumerRecord<String, String> record, Consumer<EventoContrato> efeito) {
+        processar(record, efeito, evento -> {
+        });
+    }
+
+    public void processar(
+            ConsumerRecord<String, String> record,
+            Consumer<EventoContrato> efeito,
+            Consumer<EventoContrato> aoIgnorarDuplicado
+    ) {
         colocarMdcDosHeaders(record);
         try {
             log.info("evento.recebido topic={} partition={} offset={} eventType={}",
@@ -54,11 +65,12 @@ public class ProcessadorEventos {
             boolean aplicado = Boolean.TRUE.equals(transactionTemplate.execute(status -> aplicar(evento, efeito)));
             if (aplicado) {
                 log.info("evento.processamento.sucesso eventType={}", evento.eventType());
+            } else {
+                aoIgnorarDuplicado.accept(evento);
             }
-            return aplicado;
         } catch (RuntimeException e) {
-            log.error("evento.processamento.falha topic={} partition={} offset={} causa={}",
-                    record.topic(), record.partition(), record.offset(),
+            log.warn("evento.processamento.falha tentativa={} topic={} partition={} offset={} causa={}",
+                    tentativa(record), record.topic(), record.partition(), record.offset(),
                     e.getClass().getSimpleName() + ": " + e.getMessage());
             throw e;
         } finally {
@@ -92,6 +104,14 @@ public class ProcessadorEventos {
         if (valor != null) {
             MDC.put(chave, valor);
         }
+    }
+
+    private int tentativa(ConsumerRecord<String, String> record) {
+        Header header = record.headers().lastHeader(KafkaHeaders.DELIVERY_ATTEMPT);
+        if (header == null || header.value() == null || header.value().length != Integer.BYTES) {
+            return 1;
+        }
+        return ByteBuffer.wrap(header.value()).getInt();
     }
 
     private String header(ConsumerRecord<String, String> record, String nome) {

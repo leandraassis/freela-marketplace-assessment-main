@@ -3,13 +3,12 @@ package br.com.freela.notificacao;
 import br.com.freela.notificacao.evento.EventoContrato;
 import br.com.freela.notificacao.evento.ProcessadorEventos;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @Component
@@ -19,23 +18,35 @@ class NotificacaoEventoListener {
 
     private final ProcessadorEventos processador;
     private final NotificacaoService notificacaoService;
+    private final String simulacaoFalharContratoId;
 
-    NotificacaoEventoListener(ProcessadorEventos processador, NotificacaoService notificacaoService) {
+    NotificacaoEventoListener(
+            ProcessadorEventos processador,
+            NotificacaoService notificacaoService,
+            @Value("${app.simulacao.falhar-contrato-id:}") String simulacaoFalharContratoId
+    ) {
         this.processador = processador;
         this.notificacaoService = notificacaoService;
+        this.simulacaoFalharContratoId = simulacaoFalharContratoId;
     }
 
     @KafkaListener(topics = "${app.kafka.topics.contratos}")
     void consumir(ConsumerRecord<String, String> record) {
-        boolean aplicado = processador.processar(record, this::notificar);
-        if (!aplicado) {
-            log.info("notificacao.registro.duplicado eventId={} contratoId={}", header(record, "eventId"), record.key());
-        }
+        processador.processar(record, this::notificar, this::registrarDuplicado);
+    }
+
+    private void registrarDuplicado(EventoContrato evento) {
+        log.info("notificacao.registro.duplicado eventId={} eventType={} contratoId={}",
+                evento.eventId(), evento.eventType(), evento.contratoId());
     }
 
     private void notificar(EventoContrato evento) {
         log.info("notificacao.evento.recebido eventId={} eventType={} contratoId={}",
                 evento.eventId(), evento.eventType(), evento.contratoId());
+
+        if (evento.contratoId().toString().equals(simulacaoFalharContratoId)) {
+            throw new IllegalStateException("falha simulada para o contrato " + evento.contratoId());
+        }
 
         switch (evento.eventType()) {
             case "ContratoCriado" -> registrar(evento, "freelancerId", "CONTRATO_CRIADO",
@@ -70,13 +81,5 @@ class NotificacaoEventoListener {
             throw new IllegalArgumentException("payload sem campo obrigatorio: " + campo);
         }
         return UUID.fromString(valor.asString());
-    }
-
-    private String header(ConsumerRecord<String, String> record, String nome) {
-        Header header = record.headers().lastHeader(nome);
-        if (header == null || header.value() == null) {
-            return null;
-        }
-        return new String(header.value(), StandardCharsets.UTF_8);
     }
 }
