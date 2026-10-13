@@ -16,6 +16,27 @@ spring:
         format_sql: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 10000
+app:
+  kafka:
+    topics:
+      contratos: contratos.eventos.v1
+      contratos-dlt: contratos.eventos.v1.DLT
+      particoes: 3
+  outbox:
+    intervalo-ms: 500
+    lote: 50
+    timeout-envio-ms: 15000
+    chave-lock: 1001
 management:
   endpoints:
     web:
@@ -35,3 +56,4 @@ logging:
     root: INFO
     br.com.freela: INFO
     org.hibernate.SQL: INFO
+    org.springframework.kafka.support.LoggingProducerListener: OFF

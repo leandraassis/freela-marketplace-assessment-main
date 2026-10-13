@@ -79,6 +79,17 @@ public class OutboxEventoJpaEntity {
         return entity;
     }
 
+    public void marcarPublicado(Instant publicadoEm) {
+        this.status = OutboxStatus.PUBLICADO;
+        this.publicadoEm = publicadoEm;
+        this.ultimoErro = null;
+    }
+
+    public void registrarFalha(String erro) {
+        this.tentativas++;
+        this.ultimoErro = erro == null || erro.length() <= 1000 ? erro : erro.substring(0, 1000);
+    }
+
     public Long getId() {
         return id;
     }
