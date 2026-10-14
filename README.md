@@ -6,12 +6,7 @@ A aplicação representa um cenário em que clientes contratam freelancers para 
 
 As mudanças no ciclo de vida de um contrato são comunicadas aos demais serviços de forma **assíncrona, por eventos no Apache Kafka**, com publicação transacional (Outbox), processamento idempotente, preservação de ordem por contrato, logs centralizados e rastreamento distribuído.
 
-## Documentação
-
-| Documento | Conteúdo |
-|---|---|
-| [`docs/arquitetura.md`](docs/arquitetura.md) | visão geral, por que o fluxo é assíncrono, serviços, publicação transacional (Outbox), idempotência, tracing, correlação, particionamento e concorrência, falhas e DLT, centralização de logs, testes |
-| [`docs/eventos.md`](docs/eventos.md) | contrato de comunicação: tópicos, produtor e consumidores, chave, envelope, payload e exemplo de cada evento, DLT, regras de evolução |
+> **Observação:** alguns trechos do código-fonte estão em formato compacto, sem a mesma formatação do restante. São trechos do projeto original usado como base para este trabalho e foram mantidos como estavam. O código novo ou alterado segue a formatação usual.
 
 ## Visão geral
 
@@ -44,8 +39,6 @@ A infraestrutura local utiliza PostgreSQL, Apache Kafka (com Kafka UI), Zipkin, 
 
  Todos os serviços: traces → Zipkin :9411 · logs → Loki :3100 → Grafana :3000
 ```
-
-O diagrama detalhado e o fluxo passo a passo estão em [`docs/arquitetura.md`](docs/arquitetura.md#visão-geral).
 
 ## Domínio
 
@@ -262,11 +255,9 @@ Os logs também são enviados ao **Loki** (em JSON, com os campos `correlationId
 {service=~".+"} | json | correlationId="teste-contrato-001"
 ```
 
-Outras consultas em [`docs/arquitetura.md`](docs/arquitetura.md#centralização-de-logs).
-
 ### Tracing
 
-Os serviços enviam traces ao **Zipkin** (http://localhost:9411). Uma operação iniciada no Gateway gera um único trace com os spans do Gateway, do `contrato-service`, da publicação no Kafka e do processamento em cada consumidor. Detalhes em [`docs/arquitetura.md`](docs/arquitetura.md#rastreamento-distribuído).
+Os serviços enviam traces ao **Zipkin** (http://localhost:9411). Uma operação iniciada no Gateway gera um único trace com os spans do Gateway, do `contrato-service`, da publicação no Kafka e do processamento em cada consumidor.
 
 ## Infraestrutura local
 
@@ -406,7 +397,7 @@ curl http://localhost:8080/api/reputacoes/22222222-2222-2222-2222-222222222222/h
 mvn test
 ```
 
-Requer o Docker em execução: os testes de integração sobem Kafka e PostgreSQL com Testcontainers. Cobrem as transições do contrato, a gravação transacional na outbox, a publicação no Kafka (key, headers e ordem), o consumo nos três serviços, mensagens duplicadas, a ordem dos eventos de um contrato e o envio à DLT. Detalhes em [`docs/arquitetura.md`](docs/arquitetura.md#testes-automatizados).
+Requer o Docker em execução: os testes de integração sobem Kafka e PostgreSQL com Testcontainers. Cobrem as transições do contrato, a gravação transacional na outbox, a publicação no Kafka (key, headers e ordem), o consumo nos três serviços, mensagens duplicadas, a ordem dos eventos de um contrato e o envio à DLT.
 
 ## Tecnologias
 
